@@ -18,8 +18,7 @@ var userSchema = new mongoose.Schema({
   }
 });
 
-var passportLocalMongoose = require('passport-local-mongoose');
-userSchema.plugin(passportLocalMongoose);
-
+//var passportLocalMongoose = require('passport-local-mongoose');
+//userSchema.plugin(passportLocalMongoose);
 
 module.exports = mongoose.model('User', userSchema);

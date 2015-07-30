@@ -8,11 +8,13 @@ var express = require('express'),
     mongoose = require('mongoose'),
     passport = require('passport'),
     LocalStrategy = require('passport-local').Strategy,
-
+    flash = require('connect-flash'),
     models = require('./models'),
+    bCrypt = require('bcrypt-nodejs'),
+
     dbUrl = process.env.MONGOHQ_URL || 'mongodb://@localhost:27017/blog',
     db = mongoose.connect(dbUrl, { safe: true }),
-
+    
     session = require('express-session'),
     logger = require('morgan'),
     errorHandler = require('errorhandler'),
@@ -26,9 +28,88 @@ app.locals.appTitle = "blog-express";
 
 // passport config
 var User = require('./models/user');
-passport.use(new LocalStrategy(User.authenticate()));
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+passport.use('login', new LocalStrategy({
+    usernameField : 'email',
+    passwordField : 'password',
+}, function (username, password, done) {
+    User.findOne({ email : username }, function (err, user) {
+        if (err) { return done(err); }
+        if (!user) {
+            return done(null, false, { message: 'Incorrect username.' });
+        }
+        // User exists but wrong password, log the error 
+        if (!isValidPassword(user, password)) {
+            console.log('Invalid Password');
+            return done(null, false, 
+              req.flash('message', 'Invalid Password'));
+        }
+        return done(null, user);
+    });
+}
+));
+
+var isValidPassword = function (user, password) {
+    return bCrypt.compareSync(password, user.password);
+}
+
+passport.serializeUser(function (user, done) {
+    done(null, user.id);
+});
+
+passport.deserializeUser(function (id, done) {
+    User.findById(id, function (err, user) {
+        done(err, user);
+    });
+});
+
+passport.use('signup', new LocalStrategy({
+    passReqToCallback : true
+},
+  function (req, username, password, done) {
+    findOrCreateUser = function () {
+        // find a user in Mongo with provided username
+        User.findOne({ email: username }, function (err, user) {
+            // In case of any error return
+            if (err) {
+                console.log('Error in SignUp: ' + err);
+                return done(err);
+            }
+            // already exists
+            if (user) {
+                console.log('User already exists');
+                return done(null, false, 
+             req.flash('message', 'User Already Exists'));
+            } else {
+                // if there is no user with that email
+                // create the user
+                var newUser = new User();
+                // set the user's local credentials
+
+                newUser.password = createHash(password);
+                newUser.email = req.param('email');
+                
+                // save the user
+                newUser.save(function (err) {
+                    if (err) {
+                        console.log('Error in Saving user: ' + err);
+                        throw err;
+                    }
+                    console.log('User Registration succesful');
+                    return done(null, newUser);
+                });
+            }
+        });
+    };
+    // Delay the execution of findOrCreateUser and execute 
+    // the method in the next tick of the event loop
+    process.nextTick(findOrCreateUser);
+}));
+
+// Generates hash using bCrypt
+var createHash = function (password) {
+    return bCrypt.hashSync(password, bCrypt.genSaltSync(10), null);
+}
+
 
 app.use(function (req, res, next) {
     if (!models.Article || !models.User) return next(new Error("No models."))
@@ -51,26 +132,27 @@ app.use(bodyParser.urlencoded());
 app.use(methodOverride());
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(flash());
 app.use(require('stylus').middleware(__dirname + '/public'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(function (req, res, next) {
-    if (req.session && req.session.admin)
-        res.locals.admin = true;
-    next();
+if (req.session && req.session.admin)
+res.locals.admin = true;
+next();
 });
 
 // Authorization
 var authorize = function (req, res, next) {
-    if (req.session && req.session.admin)
-        return next();
-    else
-        return res.send(401);
+if (req.session && req.session.admin)
+return next();
+else
+return res.send(401);
 };
 
 // Development only
 if ('development' === app.get('env')) {
-    app.use(errorHandler());
+app.use(errorHandler());
 }
 
 
@@ -96,7 +178,7 @@ app.del('/api/articles/:id', routes.article.del);
 
 
 app.all('*', function (req, res) {
-    res.send(404);
+res.send(404);
 })
 
 // http.createServer(app).listen(app.get('port'), function(){
@@ -105,18 +187,18 @@ app.all('*', function (req, res) {
 
 var server = http.createServer(app);
 var boot = function () {
-    server.listen(app.get('port'), function () {
-        console.info('Express server listening on port ' + app.get('port'));
-    });
+server.listen(app.get('port'), function () {
+console.info('Express server listening on port ' + app.get('port'));
+});
 }
 var shutdown = function () {
-    server.close();
+server.close();
 }
 if (require.main === module) {
-    boot();
+boot();
 } else {
-    console.info('Running app as a module')
-    exports.boot = boot;
-    exports.shutdown = shutdown;
-    exports.port = app.get('port');
+console.info('Running app as a module')
+exports.boot = boot;
+exports.shutdown = shutdown;
+exports.port = app.get('port');
 }
