@@ -1,4 +1,5 @@
-var Account = require('../models/user');
+
+var User = require('./models/user');
 var passport = require('passport');
 
 /*
@@ -33,33 +34,28 @@ exports.registerView = function (req, res) {
     res.render('register', {});
 };
 
-exports.register = function (req, res){
-    Account.register(new Account({ username : req.body.username }), req.body.password, function (err, account) {
-        if (err) {
-            return res.render('register', { info: "Sorry. That username already exists. Try again." });
-        }
+exports.register = function (req, res, next) {
+    if (!req.body.email || !req.body.password)
+        return res.render('login', { error: "Please enter your email and password." });
+    
+    req.models.User.findOne({
+        email: req.body.email
+    }, function (error, user) {
+        if (error) return next(error);
+        if (user != null) return res.render('register', { info: "Sorry. That username already exists. Try again." });
         
-        passport.authenticate('local')(req, res, function () {
-            res.redirect('/');
+        var user = new User();
+        user.email = req.body.email;
+        user.password = req.body.password;
+        user.admin = false;
+        user.save(function (err) {
+            if (err)
+                throw err;
+            return done(null, user);
         });
     });
-} 
-
+};
 
 /*
  * POST authenticate route.
  */
-
-exports.authenticate = function(req, res, next) {
-  //if (!req.body.email || !req.body.password)
-  //  return res.render('login', {error: 'Please enter your email and password.'});
-  //req.models.User.findOne({
-  //  email: req.body.email,
-  //  password: req.body.password
-  //}, function(error, user){
-  //  if (error) return next(error);
-  //  if (!user) return res.render('login', {error: 'Incorrect email&password combination.'});
-  //  req.session.user = user;
-  //  req.session.admin = user.admin;
-    res.redirect('/admin');
-};

@@ -30,6 +30,7 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="config\passport.js" />
     <Compile Include="models\article.js" />
     <Compile Include="models\index.js" />
     <Compile Include="models\user.js" />
@@ -64,6 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="models\" />
+    <Folder Include="config\" />
     <Folder Include="public\" />
     <Folder Include="public\css\" />
     <Folder Include="public\css\bootstrap-3.0.2\" />

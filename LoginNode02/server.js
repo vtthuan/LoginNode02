@@ -28,11 +28,11 @@ app.locals.appTitle = "blog-express";
 
 // passport config
 var User = require('./models/user');
-passport.use('login', new LocalStrategy({
+passport.use('local-signin', new LocalStrategy({
     usernameField : 'email',
     passwordField : 'password',
 }, function (username, password, done) {
-    User.findOne({ email : username }, function (err, user) {
+    User.findOne({ 'email' : username }, function (err, user) {
         if (err) { return done(err); }
         if (!user) {
             return done(null, false, { message: 'Incorrect username.' });
@@ -62,47 +62,48 @@ passport.deserializeUser(function (id, done) {
     });
 });
 
-passport.use('signup', new LocalStrategy({
-    passReqToCallback : true
+passport.use('local-signup', new LocalStrategy({
+    usernameField : 'email',
+    passwordField : 'password',
+    passReqToCallback : true,
 },
   function (req, username, password, done) {
-    findOrCreateUser = function () {
-        // find a user in Mongo with provided username
-        User.findOne({ email: username }, function (err, user) {
-            // In case of any error return
-            if (err) {
-                console.log('Error in SignUp: ' + err);
+    // asynchronous
+    // User.findOne wont fire unless data is sent back
+    process.nextTick(function () {
+        
+        // find a user whose email is the same as the forms email
+        // we are checking to see if the user trying to login already exists
+        User.findOne({ 'email' : email }, function (err, user) {
+            // if there are any errors, return the error
+            if (err)
                 return done(err);
-            }
-            // already exists
+            
+            // check to see if theres already a user with that email
             if (user) {
-                console.log('User already exists');
-                return done(null, false, 
-             req.flash('message', 'User Already Exists'));
+                return done(null, false, req.flash('signupMessage', 'That email is already taken.'));
             } else {
+                
                 // if there is no user with that email
                 // create the user
                 var newUser = new User();
+                
                 // set the user's local credentials
-
-                newUser.password = createHash(password);
-                newUser.email = req.param('email');
+                newUser.local.email = email;
+                newUser.local.password = newUser.generateHash(password);
                 
                 // save the user
                 newUser.save(function (err) {
-                    if (err) {
-                        console.log('Error in Saving user: ' + err);
+                    if (err)
                         throw err;
-                    }
-                    console.log('User Registration succesful');
                     return done(null, newUser);
                 });
             }
+
         });
-    };
-    // Delay the execution of findOrCreateUser and execute 
-    // the method in the next tick of the event loop
-    process.nextTick(findOrCreateUser);
+
+    });
+
 }));
 
 // Generates hash using bCrypt
@@ -116,8 +117,6 @@ app.use(function (req, res, next) {
     req.models = models;
     return next();
 });
-
-
 
 // All environments
 app.set('port', process.env.PORT || 3000);
@@ -159,12 +158,21 @@ app.use(errorHandler());
 // Pages and routes
 app.get('/', routes.index);
 app.get('/login', routes.user.login);
-app.post('/login', passport.authenticate('local'), routes.user.authenticate);
+app.post('/login', passport.authenticate('local-signin', {
+    successRedirect : '/profile', // redirect to the secure profile section
+    failureRedirect : '/login', // redirect back to the signup page if there is an error
+    failureFlash : true // allow flash messages
+}));
 app.get('/logout', routes.user.logout); //if you use everyauth, this /logout route is overwriting by everyauth automatically, therefore we use custom/additional handleLogout
 app.get('/admin', authorize, routes.article.admin);
 app.get('/post', authorize, routes.article.post);
 app.post('/post', authorize, routes.article.postArticle);
 app.get('/register', routes.user.registerView);
+//app.post('/register', passport.authenticate('local-signup', {
+//    successRedirect : '/profile', // redirect to the secure profile section
+//    failureRedirect : '/login', // redirect back to the signup page if there is an error
+//    failureFlash : true // allow flash messages
+//}));
 app.post('/register', routes.user.register);
 app.get('/articles/:slug', routes.article.show);
 
