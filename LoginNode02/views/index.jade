@@ -5,8 +5,9 @@ block page
 block content
 
   if (user)
-    p You are currently logged in as #{user.username}
+    p You are currently logged in as #{user.email}
     a(href="/logout") Logout
+    br
   if (articles.length === 0)
     | There's no published content yet. 
     a(href="/login") Log in

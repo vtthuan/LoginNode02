@@ -24,7 +24,7 @@ var express = require('express'),
 
 
 var app = express();
-app.locals.appTitle = "blog-express";
+app.locals.appTitle = "language";
 
 // passport config
 var User = require('./models/user');
@@ -74,7 +74,7 @@ passport.use('local-signup', new LocalStrategy({
         
         // find a user whose email is the same as the forms email
         // we are checking to see if the user trying to login already exists
-        User.findOne({ 'email' : email }, function (err, user) {
+        User.findOne({ 'email' : username }, function (err, user) {
             // if there are any errors, return the error
             if (err)
                 return done(err);
@@ -89,8 +89,8 @@ passport.use('local-signup', new LocalStrategy({
                 var newUser = new User();
                 
                 // set the user's local credentials
-                newUser.local.email = email;
-                newUser.local.password = newUser.generateHash(password);
+                newUser.email = username;
+                newUser.password = newUser.generateHash(password);
                 
                 // save the user
                 newUser.save(function (err) {
@@ -106,16 +106,16 @@ passport.use('local-signup', new LocalStrategy({
 
 }));
 
-// Generates hash using bCrypt
-var createHash = function (password) {
-    return bCrypt.hashSync(password, bCrypt.genSaltSync(10), null);
-}
-
-
 app.use(function (req, res, next) {
     if (!models.Article || !models.User) return next(new Error("No models."))
     req.models = models;
     return next();
+});
+
+app.use(function (req, res, next) {
+    if (req.session && req.session.admin)
+        res.locals.admin = true;
+    next();
 });
 
 // All environments
@@ -125,7 +125,7 @@ app.set('view engine', 'jade');
 
 app.use(logger('dev'));
 app.use(bodyParser.json());
-app.use(cookieParser('3CCC4ACD-6ED1-4844-9217-82131BDCB239'));
+app.use(cookieParser());
 app.use(session({ secret: '2C44774A-D649-4D44-9535-46E296EF984F' }))
 app.use(bodyParser.urlencoded());
 app.use(methodOverride());
@@ -134,12 +134,6 @@ app.use(passport.session());
 app.use(flash());
 app.use(require('stylus').middleware(__dirname + '/public'));
 app.use(express.static(path.join(__dirname, 'public')));
-
-app.use(function (req, res, next) {
-if (req.session && req.session.admin)
-res.locals.admin = true;
-next();
-});
 
 // Authorization
 var authorize = function (req, res, next) {
@@ -158,22 +152,13 @@ app.use(errorHandler());
 // Pages and routes
 app.get('/', routes.index);
 app.get('/login', routes.user.login);
-app.post('/login', passport.authenticate('local-signin', {
-    successRedirect : '/profile', // redirect to the secure profile section
-    failureRedirect : '/login', // redirect back to the signup page if there is an error
-    failureFlash : true // allow flash messages
-}));
+app.post('/login', passport.authenticate('local-signin'), routes.user.authenticate);
 app.get('/logout', routes.user.logout); //if you use everyauth, this /logout route is overwriting by everyauth automatically, therefore we use custom/additional handleLogout
 app.get('/admin', authorize, routes.article.admin);
 app.get('/post', authorize, routes.article.post);
 app.post('/post', authorize, routes.article.postArticle);
 app.get('/register', routes.user.registerView);
-//app.post('/register', passport.authenticate('local-signup', {
-//    successRedirect : '/profile', // redirect to the secure profile section
-//    failureRedirect : '/login', // redirect back to the signup page if there is an error
-//    failureFlash : true // allow flash messages
-//}));
-app.post('/register', routes.user.register);
+app.post('/register', passport.authenticate('local-signup'), routes.index);
 app.get('/articles/:slug', routes.article.show);
 
 // REST API routes

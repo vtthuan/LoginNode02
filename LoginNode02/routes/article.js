@@ -53,10 +53,6 @@ exports.edit = function(req, res, next) {
       res.send({affectedCount: count});
     })
   });
-  // req.models.Article.findByIdAndUpdate(req.params.id, {$set: req.body.article}, function(error, doc) {
-    // if (error) return next(error);
-    // res.send(doc);
-  // });
 };
 
 /*
@@ -73,10 +69,6 @@ exports.del = function(req, res, next) {
       res.send(doc);
     });
   });
-  // req.models.Article.findByIdAndRemove(req.params.id, function(error, doc) {
-    // if (error) return next(error);
-    // res.send(doc);
-  // });
 };
 
 
