@@ -106,18 +106,6 @@ passport.use('local-signup', new LocalStrategy({
 
 }));
 
-app.use(function (req, res, next) {
-    if (!models.Article || !models.User) return next(new Error("No models."))
-    req.models = models;
-    return next();
-});
-
-app.use(function (req, res, next) {
-    if (req.session && req.session.admin)
-        res.locals.admin = true;
-    next();
-});
-
 // All environments
 app.set('port', process.env.PORT || 3000);
 app.set('views', path.join(__dirname, 'views'));
@@ -134,6 +122,19 @@ app.use(passport.session());
 app.use(flash());
 app.use(require('stylus').middleware(__dirname + '/public'));
 app.use(express.static(path.join(__dirname, 'public')));
+
+
+app.use(function (req, res, next) {
+    if (!models.Article || !models.User) return next(new Error("No models."))
+    req.models = models;
+    return next();
+});
+
+app.use(function (req, res, next) {
+    if (req.session && req.session.admin)
+        res.locals.admin = true;
+    next();
+});
 
 // Authorization
 var authorize = function (req, res, next) {
