@@ -62,6 +62,7 @@
     <Content Include="views\login.jade" />
     <Content Include="views\post.jade" />
     <Content Include="views\register.jade" />
+    <Content Include="views\room.jade" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="models\" />

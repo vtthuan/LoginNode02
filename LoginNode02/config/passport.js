@@ -1,43 +1,43 @@
 ﻿// load all the things we need
-var LocalStrategy = require('passport-local').Strategy;
+var LocalStrategy = require('passport-local').Strategy,
+    bCrypt = require('bcrypt-nodejs'),
+    User = require('../models/user');
 
-// load up the user model
-var User = require('../models/user');
-
-// expose this function to our app using module.exports
+// passport config
 module.exports = function (passport) {
-    
-    // =========================================================================
-    // passport session setup ==================================================
-    // =========================================================================
-    // required for persistent login sessions
-    // passport needs ability to serialize and unserialize users out of session
-    
-    // used to serialize the user for the session
-    passport.serializeUser(function (user, done) {
-        done(null, user.id);
-    });
-    
-    // used to deserialize the user
-    passport.deserializeUser(function (id, done) {
-        User.findById(id, function (err, user) {
-            done(err, user);
-        });
-    });
-
-    passport.use('login', new LocalStrategy({
+    passport.use('local-signin', new LocalStrategy({
         usernameField : 'email',
         passwordField : 'password',
-        passReqToCallback : true // allows us to pass back the entire request to the callback
-    }, function (req, email, password, done) {
-        
+    }, function (username, password, done) {
+        User.findOne({ 'email' : username }, function (err, user) {
+            if (err) { return done(err); }
+            if (!user) {
+                return done(null, false, { message: 'Incorrect username.' });
+            }
+            // User exists but wrong password, log the error 
+            if (!isValidPassword(user, password)) {
+                console.log('Invalid Password');
+                return done(null, false, 
+              req.flash('message', 'Invalid Password'));
+            }
+            return done(null, user);
+        });
+    }
+    ));
+    
+    passport.use('local-signup', new LocalStrategy({
+        usernameField : 'email',
+        passwordField : 'password',
+        passReqToCallback : true,
+    },
+  function (req, username, password, done) {
         // asynchronous
         // User.findOne wont fire unless data is sent back
         process.nextTick(function () {
             
             // find a user whose email is the same as the forms email
             // we are checking to see if the user trying to login already exists
-            User.findOne({ 'local.email' : email }, function (err, user) {
+            User.findOne({ 'email' : username }, function (err, user) {
                 // if there are any errors, return the error
                 if (err)
                     return done(err);
@@ -52,8 +52,8 @@ module.exports = function (passport) {
                     var newUser = new User();
                     
                     // set the user's local credentials
-                    newUser.local.email = email;
-                    newUser.local.password = newUser.generateHash(password);
+                    newUser.email = username;
+                    newUser.password = generateHash(password);
                     
                     // save the user
                     newUser.save(function (err) {
@@ -62,7 +62,30 @@ module.exports = function (passport) {
                         return done(null, newUser);
                     });
                 }
+
             });
+
         });
-    }));
-};
+
+    })); 
+    
+    passport.serializeUser(function (user, done) {
+        done(null, user.id);
+    });
+    
+    passport.deserializeUser(function (id, done) {
+        User.findById(id, function (err, user) {
+            done(err, user);
+        });
+    });
+}
+
+// checking if password is valid
+var isValidPassword = function (user, password) {
+    return bCrypt.compareSync(password, user.password);
+}
+
+// Generates hash using bCrypt
+var generateHash = function (password) {
+    return bCrypt.hashSync(password, bCrypt.genSaltSync(10), null);
+}
