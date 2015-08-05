@@ -37,8 +37,11 @@
     <Compile Include="public\css\bootstrap-3.0.2\js\bootstrap.js" />
     <Compile Include="public\css\bootstrap-3.0.2\js\bootstrap.min.js" />
     <Compile Include="public\js\admin.js" />
+    <Compile Include="public\js\alertify.min.js" />
     <Compile Include="public\js\blog.js" />
+    <Compile Include="public\js\easyrtc.js" />
     <Compile Include="public\js\jquery-2.0.3.min.js" />
+    <Compile Include="public\js\room.js" />
     <Compile Include="routes\article.js" />
     <Compile Include="routes\index.js" />
     <Compile Include="routes\user.js" />
